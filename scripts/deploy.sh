@@ -36,11 +36,21 @@ install_packages() {
     golang-go build-essential
 }
 
+create_user() {
+  local name="$1"
+  id -u "$name" >/dev/null 2>&1 && return 0
+  if getent group "$name" >/dev/null 2>&1; then
+    useradd -m -s /bin/bash -g "$name" "$name"
+  else
+    useradd -m -s /bin/bash "$name"
+  fi
+}
+
 create_users() {
   # student + teacher (sudo)
-  id -u student >/dev/null 2>&1 || useradd -m -s /bin/bash student
-  id -u teacher >/dev/null 2>&1 || useradd -m -s /bin/bash teacher
-  id -u operator >/dev/null 2>&1 || useradd -m -s /bin/bash operator
+  create_user student
+  create_user teacher
+  create_user operator
 
   echo "student:12345678" | chpasswd
   echo "teacher:12345678" | chpasswd
@@ -118,7 +128,8 @@ install_systemd_units() {
 
   systemctl daemon-reload
   systemctl enable --now mywebapp.socket
-  systemctl restart mywebapp.service
+  systemctl reset-failed mywebapp.service 2>/dev/null || true
+  systemctl restart mywebapp.service || true
 }
 
 install_nginx() {
@@ -150,8 +161,8 @@ main() {
   build_and_install_app
   install_config
   install_sudoers_operator
-  install_systemd_units
   install_nginx
+  install_systemd_units
   disable_default_user
 
   echo "deploy complete"
