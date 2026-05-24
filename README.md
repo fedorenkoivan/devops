@@ -16,6 +16,52 @@
 - **V2=1** = конфігурація через аргументи командного рядка, БД: MariaDB
 - **V5=2** = порт застосунку: **5200**
 
+## Як потикать?
+Скачати Ubuntu Server звідси(https://ubuntu.com/download/server/arm)
+Створити файл віртуального диску `qemu-img create -f qcow2 ubuntu-server.qcow2 20G`
+Інсталювати ВМ-ку: `sudo ./scripts/install-vm.sh`
+Запустити ВМ-ку: `sudo ./scripts/run-vm.sh`
+Підключитися по ссш: `ssh -p 2222 username@localhost` (і ввести пароль)
+Склонувати цю репку: `git clone https://github.com/fedorenkoivan/devops.git`
+Перейти у папку, дати права на виконання файлику і задеплоїть: 
+`cd devops`
+`chmod +x ./scripts/deploy.sh`
+`sudo ./scripts/deploy.sh`
+
+`curl -i http://127.0.0.1:5200/health/alive`
+`curl -i http://127.0.0.1:5200/health/ready`
+
+`curl -i -H 'Accept: text/html' http://127.0.0.1:5200/`
+
+`curl -i -H 'Accept: application/json' http://127.0.0.1:5200/items`
+
+`curl -i -X POST http://127.0.0.1:5200/items \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{"name":"Laptop","quantity":2}'`
+
+`curl -i -H 'Accept: text/html' http://127.0.0.1:5200/items`
+`curl -i -H 'Accept: application/json' http://127.0.0.1:5200/items/1`
+`curl -i -H 'Accept: text/html' http://127.0.0.1:5200/items/1` 
+
+`curl -i http://127.0.0.1/` -> 200
+`curl -i http://127.0.0.1/items` -> 200
+`curl -i http://127.0.0.1/health/alive` -> 404 Not Found
+`curl -i http://127.0.0.1/health/ready`. -> 404 Not Found
+
+Зупинка бд
+`sudo systemctl stop mariadb`
+
+`curl -i http://127.0.0.1:5200/health/ready` -> 500 Internal Server Error
+
+Піднімемо бд
+`sudo systemctl start mariadb`
+
+`curl -i http://127.0.0.1:5200/health/ready` -> 200 OK
+
+Operator
+`sudo -l` -> маєш всі права
+
 ## Архітектура
 
 `client -> nginx (reverse proxy) -> mywebapp -> MariaDB`

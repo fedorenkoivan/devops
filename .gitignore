@@ -1,15 +1,14 @@
-# build artifacts
 /mywebapp
 
-# go
 /bin/
 /dist/
 *.exe
 *.out
 
-# IDE
 .vscode/
 .idea/
 
-# OS
 .DS_Store
+
+*.iso
+*.qcow2
