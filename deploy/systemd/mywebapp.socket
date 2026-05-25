@@ -1,0 +1,9 @@
+[Unit]
+Description=mywebapp socket
+
+[Socket]
+ListenStream=127.0.0.1:5200
+NoDelay=true
+
+[Install]
+WantedBy=sockets.target

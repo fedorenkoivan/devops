@@ -1,0 +1,31 @@
+[Unit]
+Description=mywebapp service
+After=network.target mariadb.service
+Requires=mywebapp.socket
+
+[Service]
+Type=simple
+User=mywebapp
+Group=mywebapp
+
+# Secrets should be here (root-owned, 0600)
+EnvironmentFile=/etc/mywebapp/env
+
+# Run migrations before serving
+ExecStartPre=/usr/local/bin/mywebapp migrate -migrations /var/lib/mywebapp/migrations -db-host 127.0.0.1 -db-port 3306 -db-user ${DB_USER} -db-pass ${DB_PASS} -db-name ${DB_NAME}
+
+# Serve via systemd socket activation
+ExecStart=/usr/local/bin/mywebapp serve -socket-activation -db-host 127.0.0.1 -db-port 3306 -db-user ${DB_USER} -db-pass ${DB_PASS} -db-name ${DB_NAME}
+
+Restart=always
+RestartSec=2
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/mywebapp
+
+[Install]
+WantedBy=multi-user.target
+Also=mywebapp.socket

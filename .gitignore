@@ -1,0 +1,14 @@
+/mywebapp
+
+/bin/
+/dist/
+*.exe
+*.out
+
+.vscode/
+.idea/
+
+.DS_Store
+
+*.iso
+*.qcow2

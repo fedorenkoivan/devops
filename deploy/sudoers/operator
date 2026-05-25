@@ -1,0 +1,5 @@
+# Allow operator to manage only mywebapp service and reload nginx
+Cmnd_Alias MYWEBAPP_CMDS = /bin/systemctl start mywebapp, /bin/systemctl stop mywebapp, /bin/systemctl restart mywebapp, /bin/systemctl status mywebapp
+Cmnd_Alias NGINX_CMDS = /bin/systemctl reload nginx
+
+operator ALL=(root) NOPASSWD: MYWEBAPP_CMDS, NGINX_CMDS
