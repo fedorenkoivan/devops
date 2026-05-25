@@ -1,0 +1,53 @@
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-mywebapp}
+      MYSQL_USER: ${DB_USER:-mywebapp}
+      MYSQL_PASSWORD: ${DB_PASS}
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - mywebapp-net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-mywebapp}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME:-mywebapp}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - mywebapp-net
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx/mywebapp.docker.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - mywebapp-net
+
+networks:
+  mywebapp-net:
+    driver: bridge
+
+volumes:
+  db-data:
