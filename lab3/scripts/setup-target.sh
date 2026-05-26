@@ -41,14 +41,17 @@ install_docker() {
 }
 
 create_users() {
-  for user in student teacher operator; do
+  for user in student teacher; do
     id -u "$user" &>/dev/null && continue
     useradd -m -s /bin/bash "$user"
     echo "${user}:12345678" | chpasswd
     chage -d 0 "$user" || true
   done
+  id -u operator &>/dev/null || useradd -m -s /bin/bash operator
+  echo "operator:12345678" | chpasswd
   usermod -aG sudo student
   usermod -aG sudo teacher
+  usermod -aG docker operator
   id -u "$APP_USER" &>/dev/null || \
     useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
 }

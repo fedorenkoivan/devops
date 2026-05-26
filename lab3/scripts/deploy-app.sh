@@ -21,7 +21,7 @@ sudo /usr/bin/systemctl restart "${SERVICE}"
 
 echo "Deploy done. Waiting for service to become healthy..."
 sleep 5
-if sudo /usr/bin/systemctl is-active --quiet "${SERVICE}"; then
+if sudo /usr/bin/systemctl is-active "${SERVICE}" > /dev/null 2>&1; then
   echo "Service is active."
 else
   echo "Service failed to start!" >&2
