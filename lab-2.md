@@ -370,3 +370,93 @@ Multi-stage build обов'язковий для production Go-образів:
 ### Musl vs glibc — критично для service discovery
 
 Якщо інфраструктура використовує custom DNS domains та search-домени — **не використовуйте Alpine** без явного налаштування `ndots` або переходу на FQDN. Це особливо критично в Kubernetes-середовищах.
+
+---
+
+## Практична частина — Docker Compose
+
+### Архітектура
+
+```
+client → nginx:80 → app:5200 → db:3306 (MariaDB)
+```
+
+Три сервіси в ізольованій мережі `mywebapp-net`. Назовні відкритий тільки порт `80`.
+
+### Що зробив
+
+**`Dockerfile`** — multi-stage build для Go-застосунку:
+- Stage 1: `golang:1.22-bookworm` — компіляція з `CGO_ENABLED=0` (статичний бінарник)
+- Stage 2: `alpine:3.20` — мінімальний образ із shell для entrypoint-скрипту
+
+**`entrypoint.sh`** — запускає міграції (`mywebapp migrate`) перед стартом сервера (`mywebapp serve`). Пароль та хост БД прокидуються через змінні середовища.
+
+**`deploy/nginx/mywebapp.docker.conf`** — nginx-конфіг адаптований під Docker: `proxy_pass http://app:5200` замість `127.0.0.1:5200`.
+
+**`docker-compose.yml`** — оркестрація всіх трьох сервісів:
+- `db` — MariaDB із healthcheck; `app` стартує тільки після `service_healthy`
+- `app` — збирається з локального Dockerfile, env vars для підключення до БД
+- `nginx` — монтує конфіг read-only, залежить від `app`
+- `db-data` — named volume для персистентності даних
+- `mywebapp-net` — ізольована bridge-мережа
+
+### Команди
+
+```bash
+# Підготовка
+cp .env.example .env
+# відредагувати .env — встановити DB_ROOT_PASSWORD та DB_PASS
+
+# Запуск
+docker compose up -d
+
+# Перевірка статусу
+docker compose ps
+docker compose logs app
+
+# Тест
+curl -i http://localhost/
+curl -i http://localhost/items -H 'Accept: application/json'
+curl -i -X POST http://localhost/items \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Laptop","quantity":2}'
+
+# Health через nginx — мають бути 404
+curl -i http://localhost/health/alive
+curl -i http://localhost/health/ready
+
+# Зупинка (дані зберігаються)
+docker compose down
+
+# Зупинка з видаленням даних
+docker compose down -v
+```
+
+### Результати
+
+| Перевірка | Результат |
+|---|---|
+| `GET /` через nginx | 200 OK |
+| `GET /items` (JSON) | 200 OK, повертає список |
+| `POST /items` | 201 Created |
+| `GET /health/alive` через nginx | 404 (заблоковано) |
+| `GET /health/ready` через nginx | 404 (заблоковано) |
+| Restart db-контейнера, дані після | збережені |
+| `docker compose down` + `up` | дані збережені |
+
+### Розмір образу застосунку
+
+| Stage | Розмір |
+|---|---|
+| `golang:1.22-bookworm` (builder) | ~1.1 GB |
+| `mywebapp:latest` (фінальний, alpine) | ~20 MB |
+
+### Особливості та труднощі
+
+**Міграції при старті:** застосунок не підтримує `depends_on` логіку сам по собі — вирішено через `entrypoint.sh`, який спочатку виконує `migrate`, потім `serve`. Альтернатива — окремий `migrate`-сервіс у compose, але entrypoint простіший.
+
+**`depends_on` з healthcheck:** без `condition: service_healthy` застосунок намагався підключитися до БД до того, як MariaDB завершила ініціалізацію — отримували `dial tcp: connection refused`. Healthcheck вирішив проблему.
+
+**listen address:** за замовчуванням застосунок слухає `127.0.0.1:5200` — в Docker це означає, що nginx-контейнер не може до нього достукатися. Вирішено через `entrypoint.sh`: `-listen 0.0.0.0:5200`.
+
+**Secrets:** паролі не захардкоджені в `docker-compose.yml` — передаються через `.env` файл (не комітиться, є `.env.example`).
