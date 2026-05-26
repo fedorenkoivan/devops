@@ -125,13 +125,22 @@ func mysqlDSN(cfg Config) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s%s", cfg.DBUser, cfg.DBPass, cfg.DBHost, cfg.DBPort, cfg.DBName, params)
 }
 
-func runMigrate(cfg Config) error {
+func runMigrate(cfg Config) (err error) {
 	dsn := mysqlDSN(cfg)
 	sqldb, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
-	defer sqldb.Close()
+
+	defer func() {
+		if closeErr := sqldb.Close(); closeErr != nil {
+			if err == nil {
+				err = fmt.Errorf("close db: %w", closeErr)
+			} else {
+				log.Printf("failed to close db after error: %v", closeErr)
+			}
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -139,10 +148,13 @@ func runMigrate(cfg Config) error {
 		return fmt.Errorf("db ping: %w", err)
 	}
 
-	goose.SetDialect("mysql")
+	if err := goose.SetDialect("mysql"); err != nil {
+		return fmt.Errorf("set dialect: %w", err)
+	}
 	if err := goose.Up(sqldb, cfg.MigrationsDir); err != nil {
 		return fmt.Errorf("goose up: %w", err)
 	}
+
 	return nil
 }
 

@@ -1,0 +1,191 @@
+---
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+    tags: ["*"]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.1
+
+      - name: hadolint (Dockerfile)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+
+      - name: shellcheck
+        run: |
+          sudo apt-get install -y --no-install-recommends shellcheck
+          find . -name '*.sh' -not -path './.git/*' | xargs shellcheck
+
+      - name: yamllint
+        run: |
+          pip install yamllint
+          yamllint .github/workflows/
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests with coverage
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Check coverage >= 40%
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep '^total' | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          awk -v c="$COVERAGE" 'BEGIN { if (c+0 < 40) { print "Coverage " c "% is below 40%"; exit 1 } }'
+
+      - name: Upload coverage report
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+          retention-days: 90
+
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if annotated tag
+        id: tag_type
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          git fetch --tags --unshallow 2>/dev/null || true
+          TYPE=$(git cat-file -t "${{ github.ref_name }}" 2>/dev/null || echo "unknown")
+          echo "type=$TYPE" >> "$GITHUB_OUTPUT"
+          echo "Tag type: $TYPE"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (branch push)
+        id: meta_branch
+        if: github.ref == 'refs/heads/main'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long,prefix=sha-
+
+      - name: Extract Docker metadata (annotated tag)
+        id: meta_tag
+        if: startsWith(github.ref, 'refs/tags/') && steps.tag_type.outputs.type == 'tag'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=stable
+            type=ref,event=tag
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push (branch)
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta_branch.outputs.tags }}
+          labels: ${{ steps.meta_branch.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push (annotated tag)
+        if: startsWith(github.ref, 'refs/tags/') && steps.tag_type.outputs.type == 'tag'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta_tag.outputs.tags }}
+          labels: ${{ steps.meta_tag.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy
+    runs-on: [self-hosted, linux, deploy]
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/')
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify annotated tag
+        run: |
+          git fetch --tags --unshallow 2>/dev/null || true
+          TYPE=$(git cat-file -t "${{ github.ref_name }}" 2>/dev/null || echo "unknown")
+          if [ "$TYPE" != "tag" ]; then
+            echo "Not an annotated tag (got: $TYPE). Skipping deploy." >&2
+            exit 1
+          fi
+
+      - name: Deploy to target node
+        env:
+          TARGET_HOST: ${{ secrets.TARGET_HOST }}
+          TARGET_SSH_PORT: ${{ secrets.TARGET_SSH_PORT }}
+          TARGET_SSH_KEY: ${{ secrets.TARGET_SSH_KEY }}
+          IMAGE_TAG: ${{ github.ref_name }}
+        run: |
+          echo "$TARGET_SSH_KEY" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          ssh -i /tmp/deploy_key \
+            -p "${TARGET_SSH_PORT:-22}" \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=10 \
+            "operator@${TARGET_HOST}" \
+            "IMAGE_TAG=${IMAGE_TAG} bash -s" < lab3/scripts/deploy-app.sh
+          rm -f /tmp/deploy_key
+
+      - name: Verify deployment
+        env:
+          TARGET_HOST: ${{ secrets.TARGET_HOST }}
+          TARGET_SSH_PORT: ${{ secrets.TARGET_SSH_PORT }}
+        run: |
+          sleep 10
+          bash lab3/scripts/verify.sh "http://${TARGET_HOST}:8080"
