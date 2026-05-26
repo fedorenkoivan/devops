@@ -5,7 +5,7 @@ qemu-system-aarch64 \
     -smp 2 \
     -m 2048 \
     -bios /opt/homebrew/share/qemu/edk2-aarch64-code.fd \
-    -drive file=ubuntu-server.qcow2,if=virtio,format=qcow2 \
+    -drive file=runner.qcow2,if=virtio,format=qcow2 \
     -drive file=ubuntu-26.04-live-server-arm64.iso,id=cdrom,if=none,format=raw,readonly=on \
     -device virtio-scsi-device \
     -device scsi-cd,drive=cdrom \

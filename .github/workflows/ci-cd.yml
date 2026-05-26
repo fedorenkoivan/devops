@@ -167,12 +167,14 @@ jobs:
       - name: Deploy to target node
         env:
           TARGET_HOST: ${{ secrets.TARGET_HOST }}
+          TARGET_SSH_PORT: ${{ secrets.TARGET_SSH_PORT }}
           TARGET_SSH_KEY: ${{ secrets.TARGET_SSH_KEY }}
           IMAGE_TAG: ${{ github.ref_name }}
         run: |
           echo "$TARGET_SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
           ssh -i /tmp/deploy_key \
+            -p "${TARGET_SSH_PORT:-22}" \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=10 \
             "operator@${TARGET_HOST}" \
@@ -182,6 +184,7 @@ jobs:
       - name: Verify deployment
         env:
           TARGET_HOST: ${{ secrets.TARGET_HOST }}
+          TARGET_SSH_PORT: ${{ secrets.TARGET_SSH_PORT }}
         run: |
           sleep 10
-          bash lab3/scripts/verify.sh "http://${TARGET_HOST}"
+          bash lab3/scripts/verify.sh "http://${TARGET_HOST}:8080"
