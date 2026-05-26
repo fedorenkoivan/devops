@@ -155,13 +155,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Verify annotated tag
         run: |
-          git fetch --tags --unshallow 2>/dev/null || true
-          TYPE=$(git cat-file -t "${{ github.ref_name }}" 2>/dev/null || echo "unknown")
-          if [ "$TYPE" != "tag" ]; then
-            echo "Not an annotated tag (got: $TYPE). Skipping deploy." >&2
+          if ! git rev-parse "${{ github.ref_name }}^{tag}" >/dev/null 2>&1; then
+            echo "Not an annotated tag. Skipping deploy." >&2
             exit 1
           fi
 
