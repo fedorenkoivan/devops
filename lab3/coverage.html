@@ -1,0 +1,529 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>mywebapp: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/fedorenkoivan/devops/cmd/mywebapp/main.go (58.2%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "context"
+        "database/sql"
+        "encoding/json"
+        "errors"
+        "flag"
+        "fmt"
+        "io"
+        "log"
+        "net"
+        "net/http"
+        "os"
+        "strconv"
+        "strings"
+        "time"
+
+        "github.com/coreos/go-systemd/v22/activation"
+        "github.com/go-chi/chi/v5"
+        _ "github.com/go-sql-driver/mysql"
+        "github.com/pressly/goose/v3"
+        "gorm.io/driver/mysql"
+        "gorm.io/gorm"
+)
+
+type Config struct {
+        ListenAddr    string
+        DBHost        string
+        DBPort        int
+        DBUser        string
+        DBPass        string
+        DBName        string
+        DBParams      string
+        MigrationsDir string
+}
+
+func main() <span class="cov0" title="0">{
+        log.SetFlags(log.LstdFlags | log.LUTC)
+
+        if len(os.Args) &lt; 2 </span><span class="cov0" title="0">{
+                fmt.Fprintln(os.Stderr, "usage: mywebapp &lt;serve|migrate&gt; [flags]")
+                os.Exit(2)
+        }</span>
+
+        <span class="cov0" title="0">sub := os.Args[1]
+        switch sub </span>{
+        case "serve":<span class="cov0" title="0">
+                cfg, useSocket, err := parseServeFlags(os.Args[2:])
+                if err != nil </span><span class="cov0" title="0">{
+                        fatalUsage(err)
+                }</span>
+                <span class="cov0" title="0">if err := runServe(cfg, useSocket); err != nil </span><span class="cov0" title="0">{
+                        log.Fatal(err)
+                }</span>
+        case "migrate":<span class="cov0" title="0">
+                cfg, err := parseMigrateFlags(os.Args[2:])
+                if err != nil </span><span class="cov0" title="0">{
+                        fatalUsage(err)
+                }</span>
+                <span class="cov0" title="0">if err := runMigrate(cfg); err != nil </span><span class="cov0" title="0">{
+                        log.Fatal(err)
+                }</span>
+        default:<span class="cov0" title="0">
+                fatalUsage(fmt.Errorf("unknown subcommand: %s", sub))</span>
+        }
+}
+
+func fatalUsage(err error) <span class="cov0" title="0">{
+        fmt.Fprintln(os.Stderr, err.Error())
+        os.Exit(2)
+}</span>
+
+func parseServeFlags(args []string) (Config, bool, error) <span class="cov8" title="1">{
+        fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+        fs.SetOutput(os.Stderr)
+
+        var cfg Config
+        var dbPort int
+        var useSocket bool
+
+        fs.StringVar(&amp;cfg.ListenAddr, "listen", "127.0.0.1:5200", "listen address (ignored if -socket-activation is set)")
+        fs.BoolVar(&amp;useSocket, "socket-activation", false, "use systemd socket activation")
+        fs.StringVar(&amp;cfg.DBHost, "db-host", "127.0.0.1", "db host")
+        fs.IntVar(&amp;dbPort, "db-port", 3306, "db port")
+        fs.StringVar(&amp;cfg.DBUser, "db-user", "mywebapp", "db user")
+        fs.StringVar(&amp;cfg.DBPass, "db-pass", "", "db password")
+        fs.StringVar(&amp;cfg.DBName, "db-name", "mywebapp", "db name")
+        fs.StringVar(&amp;cfg.DBParams, "db-params", "parseTime=true&amp;charset=utf8mb4&amp;collation=utf8mb4_unicode_ci", "extra mysql params")
+
+        if err := fs.Parse(args); err != nil </span><span class="cov8" title="1">{
+                return Config{}, false, err
+        }</span>
+        <span class="cov8" title="1">cfg.DBPort = dbPort
+        return cfg, useSocket, nil</span>
+}
+
+func parseMigrateFlags(args []string) (Config, error) <span class="cov8" title="1">{
+        fs := flag.NewFlagSet("migrate", flag.ContinueOnError)
+        fs.SetOutput(os.Stderr)
+
+        var cfg Config
+        var dbPort int
+
+        fs.StringVar(&amp;cfg.MigrationsDir, "migrations", "migrations", "path to migrations directory")
+        fs.StringVar(&amp;cfg.DBHost, "db-host", "127.0.0.1", "db host")
+        fs.IntVar(&amp;dbPort, "db-port", 3306, "db port")
+        fs.StringVar(&amp;cfg.DBUser, "db-user", "mywebapp", "db user")
+        fs.StringVar(&amp;cfg.DBPass, "db-pass", "", "db password")
+        fs.StringVar(&amp;cfg.DBName, "db-name", "mywebapp", "db name")
+        fs.StringVar(&amp;cfg.DBParams, "db-params", "parseTime=true&amp;charset=utf8mb4&amp;collation=utf8mb4_unicode_ci", "extra mysql params")
+
+        if err := fs.Parse(args); err != nil </span><span class="cov8" title="1">{
+                return Config{}, err
+        }</span>
+        <span class="cov8" title="1">cfg.DBPort = dbPort
+        return cfg, nil</span>
+}
+
+func mysqlDSN(cfg Config) string <span class="cov8" title="1">{
+        params := cfg.DBParams
+        if params != "" &amp;&amp; !strings.HasPrefix(params, "?") </span><span class="cov8" title="1">{
+                params = "?" + params
+        }</span>
+        <span class="cov8" title="1">return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s%s", cfg.DBUser, cfg.DBPass, cfg.DBHost, cfg.DBPort, cfg.DBName, params)</span>
+}
+
+func runMigrate(cfg Config) (err error) <span class="cov0" title="0">{
+        dsn := mysqlDSN(cfg)
+        sqldb, err := sql.Open("mysql", dsn)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("open db: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">defer func() </span><span class="cov0" title="0">{
+                if closeErr := sqldb.Close(); closeErr != nil </span><span class="cov0" title="0">{
+                        if err == nil </span><span class="cov0" title="0">{
+                                err = fmt.Errorf("close db: %w", closeErr)
+                        }</span> else<span class="cov0" title="0"> {
+                                log.Printf("failed to close db after error: %v", closeErr)
+                        }</span>
+                }
+        }()
+
+        <span class="cov0" title="0">ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        if err := sqldb.PingContext(ctx); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("db ping: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if err := goose.SetDialect("mysql"); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("set dialect: %w", err)
+        }</span>
+        <span class="cov0" title="0">if err := goose.Up(sqldb, cfg.MigrationsDir); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("goose up: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func runServe(cfg Config, useSocket bool) error <span class="cov0" title="0">{
+        dsn := mysqlDSN(cfg)
+        gdb, err := gorm.Open(mysql.Open(dsn), &amp;gorm.Config{})
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("connect db: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">r := chi.NewRouter()
+        r.Get("/", renderRootHTML)
+
+        r.Route("/health", func(r chi.Router) </span><span class="cov0" title="0">{
+                r.Get("/alive", func(w http.ResponseWriter, _ *http.Request) </span><span class="cov0" title="0">{
+                        w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+                        w.WriteHeader(http.StatusOK)
+                        _, _ = w.Write([]byte("OK"))
+                }</span>)
+                <span class="cov0" title="0">r.Get("/ready", func(w http.ResponseWriter, _ *http.Request) </span><span class="cov0" title="0">{
+                        sqlDB, err := gdb.DB()
+                        if err != nil </span><span class="cov0" title="0">{
+                                http.Error(w, "db handle not available", http.StatusInternalServerError)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+                        defer cancel()
+                        if err := sqlDB.PingContext(ctx); err != nil </span><span class="cov0" title="0">{
+                                http.Error(w, "db not ready", http.StatusInternalServerError)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+                        w.WriteHeader(http.StatusOK)
+                        _, _ = w.Write([]byte("OK"))</span>
+                })
+        })
+
+        <span class="cov0" title="0">r.Route("/items", func(r chi.Router) </span><span class="cov0" title="0">{
+                r.Get("/", listItems(gdb))
+                r.Post("/", createItem(gdb))
+                r.Get("/{id}", getItem(gdb))
+        }</span>)
+
+        <span class="cov0" title="0">srv := &amp;http.Server{
+                Handler:           r,
+                ReadHeaderTimeout: 5 * time.Second,
+        }
+
+        if useSocket </span><span class="cov0" title="0">{
+                listeners, err := activation.Listeners()
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("systemd activation listeners: %w", err)
+                }</span>
+                <span class="cov0" title="0">if len(listeners) == 0 </span><span class="cov0" title="0">{
+                        return errors.New("socket activation enabled but no listeners passed by systemd")
+                }</span>
+                <span class="cov0" title="0">if len(listeners) &gt; 1 </span><span class="cov0" title="0">{
+                        return fmt.Errorf("expected 1 systemd listener, got %d", len(listeners))
+                }</span>
+                <span class="cov0" title="0">log.Printf("serving via systemd socket activation")
+                return srv.Serve(listeners[0])</span>
+        }
+
+        <span class="cov0" title="0">ln, err := net.Listen("tcp", cfg.ListenAddr)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("listen %s: %w", cfg.ListenAddr, err)
+        }</span>
+        <span class="cov0" title="0">log.Printf("serving on http://%s", cfg.ListenAddr)
+        return srv.Serve(ln)</span>
+}
+
+func wantsHTML(r *http.Request) bool <span class="cov8" title="1">{
+        accept := r.Header.Get("Accept")
+        return strings.Contains(accept, "text/html") &amp;&amp; !strings.Contains(accept, "application/json")
+}</span>
+
+func renderRootHTML(w http.ResponseWriter, _ *http.Request) <span class="cov8" title="1">{
+        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+        w.WriteHeader(http.StatusOK)
+        _, _ = w.Write([]byte(`&lt;!doctype html&gt;
+&lt;html&gt;
+  &lt;head&gt;&lt;meta charset="utf-8"&gt;&lt;title&gt;mywebapp&lt;/title&gt;&lt;/head&gt;
+  &lt;body&gt;
+    &lt;h1&gt;mywebapp endpoints&lt;/h1&gt;
+    &lt;ul&gt;
+      &lt;li&gt;GET /items&lt;/li&gt;
+      &lt;li&gt;POST /items&lt;/li&gt;
+      &lt;li&gt;GET /items/{id}&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/body&gt;
+&lt;/html&gt;`))
+}</span>
+
+type Item struct {
+        ID        uint      `json:"id" gorm:"primaryKey;autoIncrement"`
+        Name      string    `json:"name" gorm:"type:varchar(255);not null"`
+        Quantity  int       `json:"quantity" gorm:"not null"`
+        CreatedAt time.Time `json:"created_at" gorm:"not null"`
+}
+
+type createItemRequest struct {
+        Name     string `json:"name"`
+        Quantity int    `json:"quantity"`
+}
+
+func listItems(db *gorm.DB) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                type row struct {
+                        ID   uint   `json:"id"`
+                        Name string `json:"name"`
+                }
+                var items []row
+                if err := db.Model(&amp;Item{}).Select("id", "name").Order("id desc").Find(&amp;items).Error; err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "db error", http.StatusInternalServerError)
+                        return
+                }</span>
+                <span class="cov8" title="1">if wantsHTML(r) </span><span class="cov8" title="1">{
+                        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+                        w.WriteHeader(http.StatusOK)
+                        var b strings.Builder
+                        b.WriteString("&lt;!doctype html&gt;&lt;html&gt;&lt;head&gt;&lt;meta charset=\"utf-8\"&gt;&lt;title&gt;items&lt;/title&gt;&lt;/head&gt;&lt;body&gt;")
+                        b.WriteString("&lt;h1&gt;Items&lt;/h1&gt;&lt;table border=\"1\"&gt;&lt;tr&gt;&lt;th&gt;id&lt;/th&gt;&lt;th&gt;name&lt;/th&gt;&lt;/tr&gt;")
+                        for _, it := range items </span><span class="cov8" title="1">{
+                                b.WriteString("&lt;tr&gt;&lt;td&gt;")
+                                b.WriteString(strconv.FormatUint(uint64(it.ID), 10))
+                                b.WriteString("&lt;/td&gt;&lt;td&gt;")
+                                b.WriteString(htmlEscape(it.Name))
+                                b.WriteString("&lt;/td&gt;&lt;/tr&gt;")
+                        }</span>
+                        <span class="cov8" title="1">b.WriteString("&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;")
+                        _, _ = w.Write([]byte(b.String()))
+                        return</span>
+                }
+                <span class="cov8" title="1">writeJSON(w, items)</span>
+        }
+}
+
+func createItem(db *gorm.DB) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                ct := r.Header.Get("Content-Type")
+                var req createItemRequest
+                if strings.Contains(ct, "application/json") </span><span class="cov8" title="1">{
+                        if err := decodeJSON(r, &amp;req); err != nil </span><span class="cov8" title="1">{
+                                http.Error(w, "invalid json", http.StatusBadRequest)
+                                return
+                        }</span>
+                } else<span class="cov8" title="1"> {
+                        if err := r.ParseForm(); err != nil </span><span class="cov0" title="0">{
+                                http.Error(w, "bad form", http.StatusBadRequest)
+                                return
+                        }</span>
+                        <span class="cov8" title="1">req.Name = r.FormValue("name")
+                        q := r.FormValue("quantity")
+                        if q != "" </span><span class="cov8" title="1">{
+                                v, err := strconv.Atoi(q)
+                                if err != nil </span><span class="cov8" title="1">{
+                                        http.Error(w, "quantity must be int", http.StatusBadRequest)
+                                        return
+                                }</span>
+                                <span class="cov8" title="1">req.Quantity = v</span>
+                        }
+                }
+
+                <span class="cov8" title="1">req.Name = strings.TrimSpace(req.Name)
+                if req.Name == "" </span><span class="cov8" title="1">{
+                        http.Error(w, "name is required", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov8" title="1">if req.Quantity &lt; 0 </span><span class="cov8" title="1">{
+                        http.Error(w, "quantity must be &gt;= 0", http.StatusBadRequest)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">item := Item{Name: req.Name, Quantity: req.Quantity, CreatedAt: time.Now().UTC()}
+                if err := db.Create(&amp;item).Error; err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "db error", http.StatusInternalServerError)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">if wantsHTML(r) </span><span class="cov8" title="1">{
+                        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+                        w.WriteHeader(http.StatusCreated)
+                        _, _ = w.Write([]byte("&lt;!doctype html&gt;&lt;html&gt;&lt;body&gt;&lt;p&gt;created item id: " + strconv.FormatUint(uint64(item.ID), 10) + "&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;"))
+                        return
+                }</span>
+                <span class="cov8" title="1">w.WriteHeader(http.StatusCreated)
+                writeJSON(w, item)</span>
+        }
+}
+
+func getItem(db *gorm.DB) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                idStr := chi.URLParam(r, "id")
+                id64, err := strconv.ParseUint(idStr, 10, 64)
+                if err != nil || id64 == 0 </span><span class="cov8" title="1">{
+                        http.Error(w, "invalid id", http.StatusBadRequest)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">var item Item
+                if err := db.First(&amp;item, uint(id64)).Error; err != nil </span><span class="cov8" title="1">{
+                        if errors.Is(err, gorm.ErrRecordNotFound) </span><span class="cov8" title="1">{
+                                http.Error(w, "not found", http.StatusNotFound)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">http.Error(w, "db error", http.StatusInternalServerError)
+                        return</span>
+                }
+
+                <span class="cov8" title="1">if wantsHTML(r) </span><span class="cov8" title="1">{
+                        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+                        w.WriteHeader(http.StatusOK)
+                        created := item.CreatedAt.UTC().Format(time.RFC3339)
+                        html := "&lt;!doctype html&gt;&lt;html&gt;&lt;head&gt;&lt;meta charset=\"utf-8\"&gt;&lt;title&gt;item&lt;/title&gt;&lt;/head&gt;&lt;body&gt;" +
+                                "&lt;h1&gt;Item&lt;/h1&gt;" +
+                                "&lt;ul&gt;" +
+                                "&lt;li&gt;id: " + strconv.FormatUint(uint64(item.ID), 10) + "&lt;/li&gt;" +
+                                "&lt;li&gt;name: " + htmlEscape(item.Name) + "&lt;/li&gt;" +
+                                "&lt;li&gt;quantity: " + strconv.Itoa(item.Quantity) + "&lt;/li&gt;" +
+                                "&lt;li&gt;created_at: " + created + "&lt;/li&gt;" +
+                                "&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;"
+                        _, _ = w.Write([]byte(html))
+                        return
+                }</span>
+                <span class="cov8" title="1">writeJSON(w, item)</span>
+        }
+}
+
+func htmlEscape(s string) string <span class="cov8" title="1">{
+        replacer := strings.NewReplacer(
+                "&amp;", "&amp;amp;",
+                "&lt;", "&amp;lt;",
+                "&gt;", "&amp;gt;",
+                "\"", "&amp;quot;",
+                "'", "&amp;#39;",
+        )
+        return replacer.Replace(s)
+}</span>
+
+func decodeJSON(r *http.Request, out any) error <span class="cov8" title="1">{
+        dec := jsonNewDecoder(r.Body)
+        dec.DisallowUnknownFields()
+        return dec.Decode(out)
+}</span>
+
+func writeJSON(w http.ResponseWriter, v any) <span class="cov8" title="1">{
+        w.Header().Set("Content-Type", "application/json; charset=utf-8")
+        enc := jsonNewEncoder(w)
+        _ = enc.Encode(v)
+}</span>
+
+type jsonDecoder interface {
+        Decode(v any) error
+        DisallowUnknownFields()
+}
+
+type jsonEncoder interface {
+        Encode(v any) error
+}
+
+func jsonNewDecoder(r io.Reader) jsonDecoder <span class="cov8" title="1">{
+        return json.NewDecoder(r)
+}</span>
+
+func jsonNewEncoder(w io.Writer) jsonEncoder <span class="cov8" title="1">{
+        enc := json.NewEncoder(w)
+        enc.SetEscapeHTML(false)
+        return enc
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
