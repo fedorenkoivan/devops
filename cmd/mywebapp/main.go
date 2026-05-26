@@ -148,9 +148,7 @@ func runMigrate(cfg Config) (err error) {
 		return fmt.Errorf("db ping: %w", err)
 	}
 
-	if err := goose.SetDialect("mysql"); err != nil {
-		return fmt.Errorf("set dialect: %w", err)
-	}
+	goose.SetDialect("mysql");
 	if err := goose.Up(sqldb, cfg.MigrationsDir); err != nil {
 		return fmt.Errorf("goose up: %w", err)
 	}
