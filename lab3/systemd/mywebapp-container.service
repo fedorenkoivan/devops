@@ -1,0 +1,26 @@
+[Unit]
+Description=mywebapp Docker container
+Documentation=https://github.com/fedorenkoivan/devops
+After=docker.service network-online.target mariadb.service
+Requires=docker.service
+Wants=network-online.target mariadb.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/mywebapp/env
+# Remove stale container if it exists from a previous run
+ExecStartPre=-/usr/bin/docker stop mywebapp
+ExecStartPre=-/usr/bin/docker rm mywebapp
+# Run the container with host networking so it can reach MariaDB on 127.0.0.1
+ExecStart=/usr/bin/docker run \
+  --name mywebapp \
+  --network host \
+  --env-file /etc/mywebapp/env \
+  --rm \
+  ghcr.io/fedorenkoivan/devops:stable
+ExecStop=/usr/bin/docker stop mywebapp
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

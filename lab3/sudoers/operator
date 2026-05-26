@@ -1,0 +1,11 @@
+Cmnd_Alias MYWEBAPP_CMDS = \
+  /usr/bin/systemctl start mywebapp-container, \
+  /usr/bin/systemctl stop mywebapp-container, \
+  /usr/bin/systemctl restart mywebapp-container, \
+  /usr/bin/systemctl status mywebapp-container, \
+  /usr/bin/systemctl is-active mywebapp-container, \
+  /usr/bin/systemctl daemon-reload
+
+Cmnd_Alias NGINX_CMDS = /usr/bin/systemctl reload nginx
+
+operator ALL=(root) NOPASSWD: MYWEBAPP_CMDS, NGINX_CMDS
