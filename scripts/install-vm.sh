@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 qemu-system-aarch64 \
     -M virt,highmem=on \
     -cpu max \

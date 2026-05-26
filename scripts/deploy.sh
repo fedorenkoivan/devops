@@ -14,7 +14,6 @@ set -euo pipefail
 
 N="26"
 APP_USER="mywebapp"
-APP_GROUP="mywebapp"
 APP_HOME="/var/lib/mywebapp"
 APP_CONFIG_DIR="/etc/mywebapp"
 APP_ENV_FILE="$APP_CONFIG_DIR/env"

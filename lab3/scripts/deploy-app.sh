@@ -7,7 +7,6 @@
 #   IMAGE_TAG  — the annotated tag that triggered the pipeline (e.g. v1.2.3)
 set -euo pipefail
 
-REGISTRY="ghcr.io"
 IMAGE="ghcr.io/fedorenkoivan/devops"
 SERVICE="mywebapp-container"
 
@@ -22,6 +21,10 @@ sudo /usr/bin/systemctl restart "${SERVICE}"
 
 echo "Deploy done. Waiting for service to become healthy..."
 sleep 5
-sudo /usr/bin/systemctl is-active --quiet "${SERVICE}" \
-  && echo "Service is active." \
-  || { echo "Service failed to start!" >&2; sudo /usr/bin/systemctl status "${SERVICE}" >&2; exit 1; }
+if sudo /usr/bin/systemctl is-active --quiet "${SERVICE}"; then
+  echo "Service is active."
+else
+  echo "Service failed to start!" >&2
+  sudo /usr/bin/systemctl status "${SERVICE}" >&2
+  exit 1
+fi
