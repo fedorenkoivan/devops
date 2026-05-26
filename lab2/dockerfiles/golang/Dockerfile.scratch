@@ -1,0 +1,21 @@
+FROM golang:1.21-bookworm AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o fizzbuzz .
+
+FROM scratch
+
+WORKDIR /app
+
+COPY --from=builder /app/fizzbuzz .
+COPY --from=builder /app/templates/ templates/
+
+EXPOSE 8080
+
+ENTRYPOINT ["./fizzbuzz", "serve"]
