@@ -1,5 +1,11 @@
+version: "2"
+
 run:
   timeout: 5m
+
+formatters:
+  enable:
+    - gofmt
 
 linters:
   enable:
@@ -8,12 +14,10 @@ linters:
     - errcheck
     - ineffassign
     - misspell
-    - gofmt
-
-linters-settings:
-  errcheck:
-    exclude-functions:
-      - (net/http.ResponseWriter).Write
+  settings:
+    errcheck:
+      exclude-functions:
+        - (net/http.ResponseWriter).Write
 
 issues:
   exclude-rules:
