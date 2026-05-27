@@ -1,7 +1,7 @@
 variable "base_image_path" {
   description = "Path to the Ubuntu cloud image (qcow2)"
   type        = string
-  default = "/Users/Ivan/libvirt-images/ubuntu-22.04-server-cloudimg-arm64.img"
+  default     = "/var/lib/libvirt/images/ubuntu-22.04-server-cloudimg-arm64.img"
 }
 
 variable "storage_pool" {
@@ -31,7 +31,8 @@ variable "machine_type" {
 variable "uefi_firmware_path" {
   description = "Path to UEFI firmware (required for ARM64 cloud images)"
   type        = string
-  default     = "/opt/homebrew/share/qemu/edk2-aarch64-code.fd"
+  # Ubuntu ARM64: sudo apt install qemu-efi-aarch64
+  default     = "/usr/share/qemu-efi-aarch64/QEMU_EFI.fd"
 }
 
 variable "worker_vcpu" {
@@ -59,9 +60,9 @@ variable "db_memory_mb" {
 }
 
 variable "libvirt_uri" {
-  description = "Libvirt connection URI. On macOS: qemu+unix:///session?socket=$TMPDIR/libvirt/virtqemud-sock"
+  description = "Libvirt connection URI"
   type        = string
-  default     = "qemu:///session"
+  default     = "qemu:///system"
 }
 
 variable "ansible_public_key" {

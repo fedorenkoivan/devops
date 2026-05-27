@@ -53,7 +53,7 @@ resource "libvirt_volume" "db" {
 
 resource "libvirt_domain" "worker" {
   name   = "worker"
-  type   = "qemu"
+  type   = "kvm"
   vcpu   = var.worker_vcpu
   memory = var.worker_memory_mb
 
@@ -99,21 +99,27 @@ resource "libvirt_domain" "worker" {
         }
       }
     ]
-  }
-
-  qemu_commandline = {
-    args = [
-      { value = "-netdev" },
-      { value = "vmnet-shared,id=net0" },
-      { value = "-device" },
-      { value = "virtio-net-pci,netdev=net0" },
+    interfaces = [
+      {
+        source = {
+          network = {
+            network = var.network_name
+          }
+        }
+        model = {
+          type = "virtio"
+        }
+        wait_for_ip = {
+          timeout = 120
+        }
+      }
     ]
   }
 }
 
 resource "libvirt_domain" "db" {
   name   = "db"
-  type   = "qemu"
+  type   = "kvm"
   vcpu   = var.db_vcpu
   memory = var.db_memory_mb
 
@@ -159,14 +165,20 @@ resource "libvirt_domain" "db" {
         }
       }
     ]
-  }
-
-  qemu_commandline = {
-    args = [
-      { value = "-netdev" },
-      { value = "vmnet-shared,id=net0" },
-      { value = "-device" },
-      { value = "virtio-net-pci,netdev=net0" },
+    interfaces = [
+      {
+        source = {
+          network = {
+            network = var.network_name
+          }
+        }
+        model = {
+          type = "virtio"
+        }
+        wait_for_ip = {
+          timeout = 120
+        }
+      }
     ]
   }
 }
