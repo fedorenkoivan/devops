@@ -31,10 +31,9 @@ resource "libvirt_volume" "worker" {
   name = "worker.qcow2"
   pool = var.storage_pool
 
-  backing_store = {
-    path = var.base_image_path
-    format = {
-      type = "qcow2"
+  create = {
+    content = {
+      url = "file://${var.base_image_path}"
     }
   }
 }
@@ -43,10 +42,9 @@ resource "libvirt_volume" "db" {
   name = "db.qcow2"
   pool = var.storage_pool
 
-  backing_store = {
-    path = var.base_image_path
-    format = {
-      type = "qcow2"
+  create = {
+    content = {
+      url = "file://${var.base_image_path}"
     }
   }
 }
