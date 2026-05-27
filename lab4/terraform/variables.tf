@@ -31,8 +31,8 @@ variable "machine_type" {
 variable "uefi_firmware_path" {
   description = "Path to UEFI firmware (required for ARM64 cloud images)"
   type        = string
-  # Ubuntu ARM64: sudo apt install qemu-efi-aarch64
-  default     = "/usr/share/qemu-efi-aarch64/QEMU_EFI.fd"
+  # Ubuntu ARM64: /usr/share/AAVMF/AAVMF_CODE.fd
+  default     = "/usr/share/AAVMF/AAVMF_CODE.fd"
 }
 
 variable "worker_vcpu" {

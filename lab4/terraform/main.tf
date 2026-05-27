@@ -62,6 +62,10 @@ resource "libvirt_domain" "worker" {
     loader          = var.uefi_firmware_path
     loader_type     = "pflash"
     loader_readonly = "yes"
+    nv_ram = {
+      nv_ram   = "/var/lib/libvirt/qemu/nvram/worker_VARS.fd"
+      template = "/usr/share/AAVMF/AAVMF_VARS.fd"
+    }
   }
 
   devices = {
@@ -128,6 +132,10 @@ resource "libvirt_domain" "db" {
     loader          = var.uefi_firmware_path
     loader_type     = "pflash"
     loader_readonly = "yes"
+    nv_ram = {
+      nv_ram   = "/var/lib/libvirt/qemu/nvram/db_VARS.fd"
+      template = "/usr/share/AAVMF/AAVMF_VARS.fd"
+    }
   }
 
   devices = {
