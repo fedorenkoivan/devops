@@ -51,7 +51,7 @@ resource "libvirt_volume" "db" {
 
 resource "libvirt_domain" "worker" {
   name   = "worker"
-  type   = "kvm"
+  type   = "qemu"
   vcpu   = var.worker_vcpu
   memory = var.worker_memory_mb
 
@@ -117,7 +117,7 @@ resource "libvirt_domain" "worker" {
 
 resource "libvirt_domain" "db" {
   name   = "db"
-  type   = "kvm"
+  type   = "qemu"
   vcpu   = var.db_vcpu
   memory = var.db_memory_mb
 
