@@ -1,0 +1,4 @@
+gradebook_n: "26"
+
+teacher_password_hash: "$6$rounds=4096$salt$9iE.u2pJT3KZvWRpqR1u8ZP1mXQF2lLSHQvT4rOC8eLJ5B5C1TDqPU8DLjVRO2nBwBkb1pHSA3Y4vLCGPAoZH/"
+# The hash above is sha512crypt of "12345678"

@@ -1,0 +1,12 @@
+app_user: app
+app_home: /var/lib/mywebapp
+app_config_dir: /etc/mywebapp
+app_bin: /usr/local/bin/mywebapp
+app_port: 5200
+
+db_user: mywebapp
+db_pass: mywebapp
+db_name: mywebapp
+db_port: 3306
+
+operator_password_hash: "$6$rounds=4096$salt$9iE.u2pJT3KZvWRpqR1u8ZP1mXQF2lLSHQvT4rOC8eLJ5B5C1TDqPU8DLjVRO2nBwBkb1pHSA3Y4vLCGPAoZH/"

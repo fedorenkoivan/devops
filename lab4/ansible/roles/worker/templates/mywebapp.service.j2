@@ -1,0 +1,40 @@
+[Unit]
+Description=mywebapp service
+After=network.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_user }}
+
+# Secrets/config loaded from file (root-owned, 0600)
+EnvironmentFile={{ app_config_dir }}/env
+
+# Run migrations before serving
+ExecStartPre={{ app_bin }} migrate \
+  -migrations {{ app_home }}/migrations \
+  -db-host {{ hostvars[groups['db'][0]]['ansible_host'] }} \
+  -db-port {{ db_port }} \
+  -db-user ${DB_USER} \
+  -db-pass ${DB_PASS} \
+  -db-name ${DB_NAME}
+
+ExecStart={{ app_bin }} serve \
+  -listen 127.0.0.1:{{ app_port }} \
+  -db-host {{ hostvars[groups['db'][0]]['ansible_host'] }} \
+  -db-port {{ db_port }} \
+  -db-user ${DB_USER} \
+  -db-pass ${DB_PASS} \
+  -db-name ${DB_NAME}
+
+Restart=always
+RestartSec=2
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ app_home }}
+
+[Install]
+WantedBy=multi-user.target

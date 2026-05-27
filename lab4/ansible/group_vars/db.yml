@@ -1,0 +1,4 @@
+b_user: mywebapp
+db_pass: mywebapp
+db_name: mywebapp
+db_port: 3306

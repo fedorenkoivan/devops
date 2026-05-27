@@ -1,0 +1,69 @@
+---
+- name: Install MariaDB
+  ansible.builtin.apt:
+    name:
+      - mariadb-server
+      - python3-pymysql
+    state: present
+    update_cache: true
+
+- name: Configure MariaDB bind address
+  ansible.builtin.template:
+    src: 50-server.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/50-server.cnf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mariadb
+
+- name: Enable and start MariaDB
+  ansible.builtin.systemd:
+    name: mariadb
+    enabled: true
+    state: started
+
+- name: Flush handlers to apply bind address before creating DB
+  ansible.builtin.meta: flush_handlers
+
+- name: Create application database
+  community.mysql.mysql_db:
+    name: "{{ db_name }}"
+    charset: utf8mb4
+    collation: utf8mb4_unicode_ci
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Create application DB user (accessible from worker)
+  community.mysql.mysql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_pass }}"
+    host: "{{ hostvars[groups['workers'][0]]['ansible_host'] }}"
+    priv: "{{ db_name }}.*:ALL"
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Create application DB user (accessible from localhost)
+  community.mysql.mysql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_pass }}"
+    host: "127.0.0.1"
+    priv: "{{ db_name }}.*:ALL"
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Configure firewall — allow MariaDB only from worker and localhost
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ db_port }}"
+    source: "{{ hostvars[groups['workers'][0]]['ansible_host'] }}"
+    jump: ACCEPT
+    state: present
+
+- name: Configure firewall — block MariaDB from outside
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ db_port }}"
+    jump: DROP
+    state: present
