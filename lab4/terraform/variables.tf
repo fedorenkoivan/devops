@@ -35,6 +35,12 @@ variable "uefi_firmware_path" {
   default     = "/usr/share/AAVMF/AAVMF_CODE.fd"
 }
 
+variable "disk_size_gb" {
+  description = "Disk size in GB for each VM"
+  type        = number
+  default     = 10
+}
+
 variable "worker_vcpu" {
   description = "vCPU count for worker VM"
   type        = number

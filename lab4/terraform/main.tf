@@ -11,6 +11,8 @@ provider "libvirt" {
   uri = var.libvirt_uri
 }
 
+# ---------- cloud-init disks ----------
+
 resource "libvirt_cloudinit_disk" "worker_cloudinit" {
   name = "worker-cloudinit.iso"
   user_data = templatefile("${path.module}/cloud-init/worker.yaml.tpl", {
@@ -27,29 +29,34 @@ resource "libvirt_cloudinit_disk" "db_cloudinit" {
   meta_data = ""
 }
 
-resource "libvirt_volume" "worker" {
-  name = "worker.qcow2"
-  pool = var.storage_pool
+# ---------- volumes via qemu-img (CoW on top of base image) ----------
 
-  create = {
-    content = {
-      url = "file://${var.base_image_path}"
-    }
+resource "null_resource" "volumes" {
+  triggers = {
+    base_image = var.base_image_path
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOF
+      set -e
+      for vm in worker db; do
+        dst="/var/lib/libvirt/images/$${vm}.qcow2"
+        if [ ! -s "$dst" ]; then
+          sudo qemu-img create -f qcow2 -b "${var.base_image_path}" -F qcow2 "$dst" ${var.disk_size_gb}G
+        fi
+        sudo chown libvirt-qemu:kvm "$dst"
+        sudo chmod 640 "$dst"
+      done
+      sudo virsh pool-refresh ${var.storage_pool}
+    EOF
   }
 }
 
-resource "libvirt_volume" "db" {
-  name = "db.qcow2"
-  pool = var.storage_pool
-
-  create = {
-    content = {
-      url = "file://${var.base_image_path}"
-    }
-  }
-}
+# ---------- worker VM ----------
 
 resource "libvirt_domain" "worker" {
+  depends_on = [null_resource.volumes]
+
   name   = "worker"
   type   = "qemu"
   vcpu   = var.worker_vcpu
@@ -77,9 +84,8 @@ resource "libvirt_domain" "worker" {
           type = "qcow2"
         }
         source = {
-          volume = {
-            pool   = var.storage_pool
-            volume = libvirt_volume.worker.name
+          file = {
+            file = "/var/lib/libvirt/images/worker.qcow2"
           }
         }
         target = {
@@ -119,7 +125,11 @@ resource "libvirt_domain" "worker" {
   }
 }
 
+# ---------- db VM ----------
+
 resource "libvirt_domain" "db" {
+  depends_on = [null_resource.volumes]
+
   name   = "db"
   type   = "qemu"
   vcpu   = var.db_vcpu
@@ -147,9 +157,8 @@ resource "libvirt_domain" "db" {
           type = "qcow2"
         }
         source = {
-          volume = {
-            pool   = var.storage_pool
-            volume = libvirt_volume.db.name
+          file = {
+            file = "/var/lib/libvirt/images/db.qcow2"
           }
         }
         target = {
